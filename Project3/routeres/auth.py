@@ -51,11 +51,16 @@ ALGORITHM = 'HS256'
 templates = Jinja2Templates(directory='./templates')
 
 ### PAGES ###
+
+
 @router.get('/login-page')
 def render_login_page(request: Request):
     return templates.TemplateResponse('login.html', {'request': request})
 
 
+@router.get('/register-page')
+def render_register_page(request: Request):
+    return templates.TemplateResponse('register.html', {'request': request})
 
 
 ### Endpoints ###
@@ -112,6 +117,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user.')
-    token = create_access_token(user.username, user.id, user.role, timedelta(minutes=20))
+    token = create_access_token(
+        user.username, user.id, user.role, timedelta(minutes=20))
     # we can check the token in jwt.io
     return {'access_token': token, 'token_type': 'bearer'}

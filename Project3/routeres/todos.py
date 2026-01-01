@@ -1,12 +1,16 @@
 from typing import Annotated
 
-from fastapi import Depends, APIRouter, HTTPException, Path
+from fastapi import Depends, APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette import status
 from database import SessionLocal
 from models import Todos
 from .auth import get_current_user
+from starlette.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+
+templates = Jinja2Templates(directory='./templates')
 
 router = APIRouter(prefix='/todos', tags=['todos'])
 
@@ -30,6 +34,40 @@ class TodoRequest(BaseModel):
     complete: bool = False
 
 
+def redirect_to_login():
+    redirect_reponse = RedirectResponse(url='/auth/login-page', status_code=status.HTTP_302_FOUND)
+    redirect_reponse.delete_cookie(key='access_token')
+    return redirect_reponse
+
+# Pages
+
+
+@router.get('/todo-page')
+async def render_todo_page(request: Request, db: db_dependency):
+    try:
+        user = await get_current_user(request.cookies.get('access_token'))
+        if user is None:
+            return redirect_to_login()
+
+        todos = db.query(Todos).filter(Todos.owner_id == user.get('id')).all()
+
+        return templates.TemplateResponse('todo.html', {'request': request, 'todos': todos, 'user': user})
+    except:
+        return redirect_to_login()
+
+@router.get('/add-todo-page')
+async def render_add_todo_page(request: Request):
+    try:
+        user = await get_current_user(request.cookies.get('access_token'))
+        if user is None:
+            return redirect_to_login()
+        return templates.TemplateResponse('add-todo.html', {'request': request, 'user': user})
+    except:
+        return redirect_to_login()
+
+
+
+# Endpoints
 @router.get('/', status_code=status.HTTP_200_OK)
 async def get_all(user: user_dependency, db: db_dependency):
     if user is None:
